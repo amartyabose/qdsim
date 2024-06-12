@@ -12,6 +12,6 @@ include("Post.jl")
 """
 Quantum dynamics simulations using QuantumDynamics.jl made a breeze
 """
-@main
+Comonicon.@main
 
 end
