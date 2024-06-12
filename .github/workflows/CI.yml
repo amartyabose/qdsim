@@ -24,10 +24,10 @@ jobs:
       matrix:
         version:
           - '1.10'
-          - '1.8'
+          - '1.9'
           - 'nightly'
         os:
-          - ubuntu-latest
+          - [ubuntu-latest, windows-latest]
         arch:
           - x64
     steps:
@@ -36,6 +36,9 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+      - name: 'Setup Julia'
+        run: |
+          julia -e 'ENV["PYTHON"]=""; import Pkg; Pkg.add(["PyPlot", "PyCall"])'
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
