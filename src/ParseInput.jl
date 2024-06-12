@@ -1,6 +1,7 @@
 module ParseInput
 
 using DelimitedFiles
+using LinearAlgebra
 using TOML
 using Unitful, UnitfulAtomic
 
@@ -105,7 +106,7 @@ function parse_system_bath(input_file)
     bath = parse_bath(input_dict["baths"], sys.Hamiltonian, unit)
     is_QuAPI = get(input_dict["system"], "is_QuAPI", true)
     if !is_QuAPI
-        sys.Hamiltonian .-= diagm(sum([SpectralDensities.reorganization_energy(j) * svec[nb, :] .^ 2 for (nb, j) in enumerate(bath.Jw)]))
+        sys.Hamiltonian .-= diagm(sum([SpectralDensities.reorganization_energy(j) * bath.svecs[nb, :] .^ 2 for (nb, j) in enumerate(bath.Jw)]))
     end
     unit, sys, bath
 end

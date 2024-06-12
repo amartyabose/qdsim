@@ -36,9 +36,6 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - name: 'Setup Julia'
-        run: |
-          julia -e 'ENV["PYTHON"]=""; import Pkg; Pkg.add(["PyPlot", "PyCall"])'
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1

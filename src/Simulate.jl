@@ -9,8 +9,8 @@ using QuantumDynamics
 
 using ..QDSimUtilities, ..ParseInput, ..Dynamics
 
-function calc(::QDSimUtilities.Calculation"dynamics", sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, units::QDSimUtilities.Units, sim_node, sim_out::Union{Nothing,HDF5.Group}; dry=false)
-    sim.dt = sim["dt"] * unit.time_unit
+function calc(::QDSimUtilities.Calculation"dynamics", sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim_old::QDSimUtilities.Simulation, units::QDSimUtilities.Units, sim_node, sim_out::Union{Nothing,HDF5.Group}; dry=false)
+    sim = QDSimUtilities.Simulation(sim_old.name, sim_old.calculation, sim_old.method, sim_old.output, sim_node["dt"] * units.time_unit, sim_old.ntimes)
     dt_group = Utilities.create_and_select_group(sim_out, "dt=$(sim.dt / units.time_unit)")
     Dynamics.dynamics(QDSimUtilities.Method(sim.method)(), units, sys, bath, sim, dt_group, sim_node; dry)
 end
