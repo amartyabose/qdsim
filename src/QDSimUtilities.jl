@@ -31,7 +31,7 @@ struct Bath
     svecs::Matrix{Float64}
 end
 
-struct Simulation
+mutable struct Simulation
     name::String
     calculation::String
     method::String
