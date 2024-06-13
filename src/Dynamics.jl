@@ -67,7 +67,7 @@ function dynamics(::QDSimUtilities.Method"QuAPI-TTM", units::QDSimUtilities.Unit
     data
 end
 
-function dynamics(::Method"Blip-TTM", units::Units, sys::System, bath::Bath, sim::Simulation, rmax_group::Union{Nothing,HDF5.Group}, sim_node, rmax::Int)
+function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
     if !dry
         @info "Running a Blip calculation with TTM. Please cite:"
         QDSimUtilities.print_citation(Blip.references)
