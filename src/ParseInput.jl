@@ -113,7 +113,7 @@ end
 
 function parse_sim(sim, unit)
     name = sim["name"]
-    calculation = get(sim, "calcation", "dynamics")
+    calculation = get(sim, "calculation", "dynamics")
     method = sim["method"]
     output = sim["output"]
     ntimes = sim["ntimes"]
