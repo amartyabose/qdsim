@@ -8,7 +8,6 @@ using QuantumDynamics
 using DelimitedFiles
 using TOML
 using ..ParseInput, ..Simulate, ..QDSimUtilities
-include("plot_settings.jl")
 
 """
 Combine the source files `sources` into `output`. If `output` does not exist, it is created.
@@ -23,17 +22,12 @@ Combine the source files `sources` into `output`. If `output` does not exist, it
     end
 end
 
-@cast function plot(system_input, simulate_input)
+@cast function get_observable(system_input, simulate_input)
     QDSimUtilities.print_banner()
     units, sys, bath = ParseInput.parse_system_bath(system_input)
     sim_file = TOML.parsefile(simulate_input)
-    plot_node = sim_file["plot"]
-    outfile = plot_node["output"]
-    xlabel = plot_node["xlabel"]
-    ylabel = plot_node["ylabel"]
-    new_figure()
-    for (ns, sim_node) in enumerate(plot_node["simulation"])
-        @info "Plotting for simulation number $(ns)."
+    for (ns, sim_node) in enumerate(sim_file["simulation"])
+        @info "Getting observables for simulation number $(ns)."
         sim = ParseInput.parse_sim(sim_node, units)
         @assert isfile(sim.output) "File not present."
         out = h5open(sim.output, "r+")
@@ -42,25 +36,41 @@ end
         data_node = Simulate.calc(QDSimUtilities.Calculation(sim.calculation)(), sys, bath, sim, units, sim_node, method_group; dry=true)[outputdir]
         ts = read_dataset(data_node, "ts")
         ρs = read_dataset(data_node, "rhos")
-        observable = sim_node["observable"]
-        if observable == "trace"
-            vals = [tr(ρs[j, :, :]) for j in axes(ρs, 1)]
-        elseif observable == "purity"
-            vals = [tr(ρs[j, :, :] * ρs[j, :, :]) for j in axes(ρs, 1)]
-        elseif observable == "vonNeumann_entropy"
-            vals = [-tr(ρs[j, :, :] * log(ρs[j, :, :])) for j in axes(ρs, 1)]
-        else
-            obs = ParseInput.read_matrix(observable)
-            vals = Utilities.expect(ρs, obs)
+        num_obs = length(sim_node["observable"])
+        names = String[]
+        vals = zeros(ComplexF64, length(ts), num_obs)
+        for (os, obs) in enumerate(sim_node["observable"])
+            push!(names, obs["observable"])
+            if obs["observable"] == "trace"
+                vals[:, os] .= [tr(ρs[j, :, :]) for j in axes(ρs, 1)]
+            elseif obs["observable"] == "purity"
+                vals[:, os] .= [tr(ρs[j, :, :] * ρs[j, :, :]) for j in axes(ρs, 1)]
+            elseif obs["observable"] == "vonNeumann_entropy"
+                vals[:, os] = [-tr(ρs[j, :, :] * log(ρs[j, :, :])) for j in axes(ρs, 1)]
+            else
+                obs = ParseInput.read_matrix(obs["observable"])
+                vals[:, os] = Utilities.expect(ρs, obs)
+            end
         end
-        lab = sim_node["label"]
-        plt.plot(ts, real.(vals), lw=0.75, label=lab)
-        close(out)
+
+        open("real_"*sim_node["observable_output"], "w") do io
+            write(io, "# (1)t ")
+            for (j, n) in enumerate(names)
+                write(io, "($(j+1))$(n) ")
+            end
+            write(io, "\n")
+            writedlm(io, [round.(ts; sigdigits=10) round.(real.(vals); sigdigits=10)])
+        end
+
+        open("imag_"*sim_node["observable_output"], "w") do io
+            write(io, "# (1)t ")
+            for (j, n) in enumerate(names)
+                write(io, "($(j+1))$(n) ")
+            end
+            write(io, "\n")
+            writedlm(io, [round.(ts; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+        end
     end
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend()
-    plt.savefig(outfile; bbox_inches="tight")
 end
 
 end
