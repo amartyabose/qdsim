@@ -61,17 +61,21 @@ function parse_bath(baths, H0, unit)
         sd_type = get(b, "type", "ohmic")
         if sd_type == "ohmic"
             ξ = b["xi"]
-            ωc = b["omegac"] * unit.energy_unit
+            ωc = b["omegac"]
             n = get(b, "n", 1.0)
             Δs = get(b, "Ds", 2.0)
             npoints = get(b, "npoints", 100000)
             ωmax = get(b, "omega_max", 30.0 * ωc)
+            ωc *= unit.energy_unit
+            ωmax *= unit.energy_unit
             classical = get(b, "classical", false)
             push!(Jw, SpectralDensities.ExponentialCutoff(; ξ, ωc, n, Δs, ωmax, npoints, classical))
         elseif sd_type == "drude_lorentz"
             λ = b["lambda"] * unit.energy_unit
-            γ = b["gamma"] * unit.energy_unit
+            γ = b["gamma"]
             ωmax = get(b, "omega_max", 100.0 * γ)
+            γ *= unit.energy_unit
+            ωmax *= unit.energy_unit
             npoints = get(b, "npoints", 100000)
             Δs = get(b, "Ds", 2.0)
             classical = get(b, "classical", false)
@@ -116,8 +120,24 @@ function parse_sim(sim, unit)
     calculation = get(sim, "calculation", "dynamics")
     method = sim["method"]
     output = sim["output"]
-    ntimes = sim["ntimes"]
-    QDSimUtilities.Simulation(name, calculation, method, output, 0.0, ntimes)
+    nsteps = sim["nsteps"]
+    dt = get(sim, "dt", 0.0)
+    QDSimUtilities.Simulation(name, calculation, method, output, dt, nsteps)
+end
+
+function parse_operator(op, Hamiltonian)
+    obs = zero(Hamiltonian)
+    if startswith(op, "P_")
+        state = parse(Int64, split(op, "_")[2])
+        obs[state, state] = 1
+        obs
+    elseif startswith(op, "F_")
+        state = parse(Int64, split(op, "_")[2])
+        obs[state, state] = 1
+        1im * Utilities.commutator(Hamiltonian, obs)
+    else
+        ParseInput.read_matrix(op)
+    end
 end
 
 end

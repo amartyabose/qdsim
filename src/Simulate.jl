@@ -16,8 +16,14 @@ function calc(::QDSimUtilities.Calculation"dynamics", sys::QDSimUtilities.System
 end
 
 function calc(::QDSimUtilities.Calculation"equilibrium_rho", sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, units::QDSimUtilities.Units, sim_node, sim_out::Union{Nothing,HDF5.Group}; dry=false)
-    dat_group = Utilities.create_and_select_group(sim_out, "nsteps=$(sim.ntimes)")
+    dat_group = Utilities.create_and_select_group(sim_out, "nsteps=$(sim.nsteps)")
     Equilibrium.rho(QDSimUtilities.Method(sim.method)(), units, sys, bath, sim, dat_group, sim_node; dry)
+end
+
+function calc(::QDSimUtilities.Calculation"complex_corr", sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, units::QDSimUtilities.Units, sim_node, sim_out::Union{Nothing, HDF5.Group}; dry=false)
+    sim.dt = sim_node["dt"] * units.time_unit
+    dat_group = Utilities.create_and_select_group(sim_out, "nsteps=$(sim.nsteps)")
+    Equilibrium.complex_time_correlation_function(QDSimUtilities.Method(sim.method)(), units, sys, bath, sim, dat_group, sim_node; dry)
 end
 
 @cast function propagate_using_tmats(system_input, simulate_input)

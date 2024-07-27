@@ -1,4 +1,6 @@
 module QDSimUtilities
+
+using FoldsThreads
 using QuantumDynamics
 
 struct Method{method} end
@@ -38,7 +40,7 @@ mutable struct Simulation
     output::String
 
     dt::Float64
-    ntimes::Int64
+    nsteps::Int64
 end
 
 print_citation(cite) = printstyled(cite * "\n"; color=:red)
@@ -47,4 +49,15 @@ function print_banner()
     printstyled("Welcome to the QDSim program built on top of the QuantumDynamics.jl library:\n"; color=:blue)
     print_citation("- Bose, A. QuantumDynamics.jl: A Modular Approach to Simulations of Dynamics of Open Quantum Systems. The Journal of Chemical Physics 2023, 158 (20), 204113. https://doi.org/10.1063/5.0151483.")
 end
+
+function parse_exec(exec_str::String)
+    if exec_str == "SequentialEx"
+        FLoops.SequentialEx()
+    elseif exec_str == "ThreadedEx"
+        FLoops.ThreadedEx()
+    elseif exec_str == "WorkStealingEx"
+        WorkStealingEx()
+    end
+end
+
 end

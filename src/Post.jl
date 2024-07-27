@@ -48,7 +48,7 @@ end
             elseif obs["observable"] == "vonNeumann_entropy"
                 vals[:, os] = [-tr(ρs[j, :, :] * log(ρs[j, :, :])) for j in axes(ρs, 1)]
             else
-                obs = ParseInput.read_matrix(obs["observable"])
+                obs = ParseInput.parse_operator(obs["observable"], sys.Hamiltonian)
                 vals[:, os] = Utilities.expect(ρs, obs)
             end
         end
