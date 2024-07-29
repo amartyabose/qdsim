@@ -42,6 +42,8 @@ function complex_time_correlation_function(::QDSimUtilities.Method"TNPI", units:
     tfinal = sim_node["tfinal"] * units.time_unit
     @info "Running with $(BLAS.get_num_threads()) threads."
 
+    type_corr = get(sim_node, "corr_type", "symm")
+
     maxdim_group = Utilities.create_and_select_group(dat_group, "maxdim=$(maxdim)")
     cutoff_group = Utilities.create_and_select_group(maxdim_group, "cutoff=$(cutoff)")
     data = Utilities.create_and_select_group(cutoff_group, "algorithm=$(algorithm)")
@@ -61,7 +63,7 @@ function complex_time_correlation_function(::QDSimUtilities.Method"TNPI", units:
         Utilities.check_or_insert_value(data, "eqm_rho", real.(At / tr(At)))
         A = ParseInput.parse_operator(sim_node["A"], sys.Hamiltonian)
         B = ParseInput.parse_operator(sim_node["B"], sys.Hamiltonian)
-        ComplexTNPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data)
+        ComplexTNPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
     end
     data
 end
@@ -105,6 +107,8 @@ function complex_time_correlation_function(::QDSimUtilities.Method"QuAPI", units
         @info "Running with $(Threads.nthreads()) threads."
     end
 
+    type_corr = get(sim_node, "corr_type", "symm")
+
     data = Utilities.create_and_select_group(dat_group, "cutoff=$(cutoff)")
     if !dry
         flush(data)
@@ -122,7 +126,7 @@ function complex_time_correlation_function(::QDSimUtilities.Method"QuAPI", units
         Utilities.check_or_insert_value(data, "eqm_rho", real.(At / tr(At)))
         A = ParseInput.parse_operator(sim_node["A"], sys.Hamiltonian)
         B = ParseInput.parse_operator(sim_node["B"], sys.Hamiltonian)
-        ComplexQuAPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data)
+        ComplexQuAPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
     end
     data
 end
