@@ -28,6 +28,7 @@ end
 
 @cast function propagate_using_tmats(system_input, simulate_input)
     QDSimUtilities.print_banner()
+    @info "Using $(Utilities.get_BLAS_implementation()) for linear algebra."
     @info "Using transfer tensors to propagate the reduced density matrices:"
     QDSimUtilities.print_citation(TTM.references)
     units, sys, bath = ParseInput.parse_system_bath(system_input)
@@ -60,6 +61,8 @@ end
 
 @cast function run(system_input, simulate_input)
     QDSimUtilities.print_banner()
+
+    @info "Using $(Utilities.get_BLAS_implementation()) for linear algebra."
 
     units, sys, bath = ParseInput.parse_system_bath(system_input)
     sim_file = TOML.parsefile(simulate_input)
