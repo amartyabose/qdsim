@@ -41,14 +41,14 @@ end
         method_group = out["$(sim.name)/$(sim.calculation)/$(sim.method)"]
         data_node = calc(QDSimUtilities.Calculation(sim.calculation)(), sys, bath, sim, units, sim_node, method_group; dry=true)
         Ts = read_dataset(data_node, "Tmat")
-        U0es = TTM.get_propagators_from_Ts(Ts, sim.ntimes)
+        U0es = TTM.get_propagators_from_Ts(Ts, sim.nsteps)
 
         ρ0s = sim_node["rho0"]
         outputdirs = sim_node["outgroup"]
         for (nρ, (ρ0file, outputdir)) in enumerate(zip(ρ0s, outputdirs))
             @info "Processing initial density number $(nρ)."
             ρ0 = ParseInput.read_matrix(ρ0file)
-            ts, ρs = Utilities.apply_propagator(; propagators=U0es, ρ0, sim.ntimes, sim.dt)
+            ts, ρs = Utilities.apply_propagator(; propagators=U0es, ρ0, ntimes=sim.nsteps, sim.dt)
             @info "Saving the data in $(outputdir)."
             out = Utilities.create_and_select_group(data_node, outputdir)
             Utilities.check_or_insert_value(out, "ts", collect(ts) / units.time_unit)
