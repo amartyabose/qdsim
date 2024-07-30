@@ -1,9 +1,12 @@
 module qdsim
 
-mklext = Base.get_extension(qdsim, :MKLLinearAlgebra)
-if !isnothing(mklext)
-    @info "Loading MKL for linear algebra."
+using LinearAlgebra
+try
     using MKL
+catch e
+    @info "MKL is not installed. Using default BLAS implementation: $(BLAS.get_config())."
+else
+    @info "MKL is loaded."
 end
 
 using Comonicon
