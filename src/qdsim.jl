@@ -1,13 +1,8 @@
 module qdsim
 
 using LinearAlgebra
-try
-    using MKL
-catch e
-    @info "MKL is not installed. Using default BLAS implementation: $(BLAS.get_config())."
-else
-    @info "MKL is loaded."
-end
+using MKL
+@info "Using $(BLAS.get_config()) for linear algebra."
 
 using Comonicon
 
