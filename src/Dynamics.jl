@@ -82,13 +82,17 @@ function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units
     rmax = sim_node["rmax"]
     rmax_group = Utilities.create_and_select_group(dt_group, "rmax=$(rmax)")
     max_blips = get(sim_node, "max_blips", -1)
-    min_dist = get(sim_node, "min_dist", 1)
+    num_changes = get(sim_node, "num_changes", -1)
     if max_blips == -1
         mb_data = Utilities.create_and_select_group(rmax_group, "max_blips=all")
     else
         mb_data = Utilities.create_and_select_group(rmax_group, "max_blips=$(max_blips)")
     end
-    data = Utilities.create_and_select_group(mb_data, "min_dist=$(min_dist)")
+    if num_changes == -1
+        data = Utilities.create_and_select_group(mb_data, "num_changes=all")
+    else
+        data = Utilities.create_and_select_group(mb_data, "num_changes=$(num_changes)")
+    end
     exec = get(sim_node, "exec", "ThreadedEx")
     if exec != "SequentialEx"
         @info "Running with $(Threads.nthreads()) threads."
@@ -100,7 +104,7 @@ function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units
         flush(data)
 
         path_integral_routine = Blip.build_augmented_propagator
-        extraargs = Blip.BlipArgs(; max_blips, min_dist)
+        extraargs = Blip.BlipArgs(; max_blips, num_changes)
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax)
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
