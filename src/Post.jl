@@ -30,45 +30,69 @@ end
         @info "Getting observables for simulation number $(ns)."
         sim = ParseInput.parse_sim(sim_node, units)
         @assert isfile(sim.output) "File not present."
-        out = h5open(sim.output, "r+")
+        out = h5open(sim.output, "r")
         outputdir = sim_node["outgroup"]
         method_group = out["$(sim.name)/$(sim.calculation)/$(sim.method)"]
         data_node = Simulate.calc(QDSimUtilities.Calculation(sim.calculation)(), sys, bath, sim, units, sim_node, method_group; dry=true)[outputdir]
         ts = read_dataset(data_node, "ts")
+        dt = ts[2] - ts[1]
+        ωlim = π/dt
+        dω = π/ts[end]
+        ω = -ωlim:dω:ωlim
         ρs = read_dataset(data_node, "rhos")
         num_obs = length(sim_node["observable"])
         names = String[]
-        vals = zeros(ComplexF64, length(ts), num_obs)
+        ft = get(sim_node, "fourier_transform", false)
+        vals = ft ? zeros(ComplexF64, length(ω), num_obs) : zeros(ComplexF64, length(ts), num_obs)
+        values = ft ? zeros(ComplexF64, length(ω)) : zeros(ComplexF64, length(ts))
         for (os, obs) in enumerate(sim_node["observable"])
             push!(names, obs["observable"])
             if obs["observable"] == "trace"
-                vals[:, os] .= [tr(ρs[j, :, :]) for j in axes(ρs, 1)]
+                values .= [tr(ρs[j, :, :]) for j in axes(ρs, 1)]
             elseif obs["observable"] == "purity"
-                vals[:, os] .= [tr(ρs[j, :, :] * ρs[j, :, :]) for j in axes(ρs, 1)]
+                values .= [tr(ρs[j, :, :] * ρs[j, :, :]) for j in axes(ρs, 1)]
             elseif obs["observable"] == "vonNeumann_entropy"
-                vals[:, os] = [-tr(ρs[j, :, :] * log(ρs[j, :, :])) for j in axes(ρs, 1)]
+                values = [-tr(ρs[j, :, :] * log(ρs[j, :, :])) for j in axes(ρs, 1)]
             else
                 obs = ParseInput.parse_operator(obs["observable"], sys.Hamiltonian)
-                vals[:, os] = Utilities.expect(ρs, obs)
+                values = Utilities.expect(ρs, obs)
             end
+            _, valft = ft ? Utilities.fourier_transform(ts, values) : (ts, values)
+            vals[:, os] .= ft ? valft : valft
         end
 
         open("real_"*sim_node["observable_output"], "w") do io
-            write(io, "# (1)t ")
+            if ft
+                write(io, "# (1)w ")
+            else
+                write(io, "# (1)t ")
+            end
             for (j, n) in enumerate(names)
                 write(io, "($(j+1))$(n) ")
             end
             write(io, "\n")
-            writedlm(io, [round.(ts; sigdigits=10) round.(real.(vals); sigdigits=10)])
+            if ft
+                writedlm(io, [round.(ω; sigdigits=10) round.(real.(vals); sigdigits=10)])
+            else
+                writedlm(io, [round.(ts; sigdigits=10) round.(real.(vals); sigdigits=10)])
+            end
         end
 
         open("imag_"*sim_node["observable_output"], "w") do io
-            write(io, "# (1)t ")
+            if ft
+                write(io, "# (1)w ")
+            else
+                write(io, "# (1)t ")
+            end
             for (j, n) in enumerate(names)
                 write(io, "($(j+1))$(n) ")
             end
             write(io, "\n")
-            writedlm(io, [round.(ts; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+            if ft
+                writedlm(io, [round.(ω; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+            else
+                writedlm(io, [round.(ts; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+            end
         end
     end
 end

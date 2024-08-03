@@ -48,6 +48,9 @@ function complex_time_correlation_function(::QDSimUtilities.Method"TNPI", units:
     cutoff_group = Utilities.create_and_select_group(maxdim_group, "cutoff=$(cutoff)")
     data = Utilities.create_and_select_group(cutoff_group, "algorithm=$(algorithm)")
     if !dry
+        Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
+        Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
+        Utilities.check_or_insert_value(data, "time", 0:sim.dt/units.time_unit:tfinal/units.time_unit |> collect)
         flush(data)
         extraargs = Utilities.TensorNetworkArgs(; cutoff, maxdim, algorithm)
 
@@ -63,7 +66,13 @@ function complex_time_correlation_function(::QDSimUtilities.Method"TNPI", units:
         Utilities.check_or_insert_value(data, "eqm_rho", real.(At / tr(At)))
         A = ParseInput.parse_operator(sim_node["A"], sys.Hamiltonian)
         B = ParseInput.parse_operator(sim_node["B"], sys.Hamiltonian)
-        ComplexTNPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
+        ts, corr, _ = ComplexTNPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
+        ft = get(sim_node, "fourier_transform", false)
+        if ft
+            ωs, spectrum = Utilities.fourier_transform(ts, corr)
+            Utilities.check_or_insert_value(data, "frequency", ωs ./ units.energy_unit)
+            Utilities.check_or_insert_value(data, "spectrum", spectrum)
+        end
     end
     data
 end
@@ -111,6 +120,9 @@ function complex_time_correlation_function(::QDSimUtilities.Method"QuAPI", units
 
     data = Utilities.create_and_select_group(dat_group, "cutoff=$(cutoff)")
     if !dry
+        Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
+        Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
+        Utilities.check_or_insert_value(data, "time", 0:sim.dt/units.time_unit:tfinal/units.time_unit |> collect)
         flush(data)
         extraargs = QuAPI.QuAPIArgs(; cutoff)
 
@@ -126,7 +138,13 @@ function complex_time_correlation_function(::QDSimUtilities.Method"QuAPI", units
         Utilities.check_or_insert_value(data, "eqm_rho", real.(At / tr(At)))
         A = ParseInput.parse_operator(sim_node["A"], sys.Hamiltonian)
         B = ParseInput.parse_operator(sim_node["B"], sys.Hamiltonian)
-        ComplexQuAPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
+        ts, corr, _ = ComplexQuAPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
+        ft = get(sim_node, "fourier_transform", false)
+        if ft
+            ωs, spectrum = Utilities.fourier_transform(ts, corr)
+            Utilities.check_or_insert_value(data, "frequency", ωs ./units.energy_unit)
+            Utilities.check_or_insert_value(data, "spectrum", spectrum)
+        end
     end
     data
 end

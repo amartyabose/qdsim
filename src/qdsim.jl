@@ -2,7 +2,6 @@ module qdsim
 
 using LinearAlgebra
 using MKL
-@info "Using $(BLAS.get_config()) for linear algebra."
 
 using Comonicon
 

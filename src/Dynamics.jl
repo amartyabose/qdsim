@@ -2,7 +2,7 @@ module Dynamics
 
 using LinearAlgebra
 using QuantumDynamics
-using ..QDSimUtilities
+using ..QDSimUtilities, ..ParseInput
 
 function dynamics(::QDSimUtilities.Method"TNPI-TTM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
     if !dry
@@ -109,6 +109,37 @@ function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
         TTM.get_propagators(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax=rmax, path_integral_routine, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec))..., data
+    end
+    data
+end
+
+function dynamics(::QDSimUtilities.Method"HEOM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
+    if !dry
+        @info "Running a HEOM calculation."
+    end
+    num_modes = sim_node["num_modes"]
+    Lmax = sim_node["Lmax"]
+    num_modes_group = Utilities.create_and_select_group(dt_group, "num_modes=$(num_modes)")
+    Lmax_group = Utilities.create_and_select_group(num_modes_group, "Lmax=$(Lmax)")
+    threshold = get(sim_node, "threshold", 0.0)
+    threshold_group = Utilities.create_and_select_group(Lmax_group, "threshold=$(threshold)")
+    reltol = get(sim_node, "reltol", 1e-6)
+    abstol = get(sim_node, "abstol", 1e-6)
+    diffgroup = Utilities.create_and_select_group(threshold_group, "reltol=$(reltol); abstol=$(abstol)")
+    outgroup = sim_node["outgroup"]
+    data = Utilities.create_and_select_group(diffgroup, outgroup)
+    if !dry
+        Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
+        Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
+        Utilities.check_or_insert_value(data, "time", 0:sim.dt:sim.nsteps*sim.dt |> collect)
+        flush(data)
+
+        Hamiltonian = sys.Hamiltonian .+ diagm(sum([SpectralDensities.reorganization_energy(j) * bath.svecs[nb, :] .^ 2 for (nb, j) in enumerate(bath.Jw)])) 
+        sys_ops = [diagm(complex(bath.svecs[nb, :])) for nb = 1:size(bath.svecs, 1)]
+        ρ0 = ParseInput.read_matrix(sim_node["rho0"])
+        @time _, ρs = HEOM.propagate(; Hamiltonian, ρ0, sys_ops, Jw=bath.Jw, β=bath.β, num_modes, Lmax, dt=sim.dt, ntimes=sim.nsteps, threshold, extraargs=Utilities.DiffEqArgs(; reltol, abstol))
+        Utilities.check_or_insert_value(data, "rhos", ρs)
+        flush(data)
     end
     data
 end
