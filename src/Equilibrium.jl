@@ -69,7 +69,8 @@ function complex_time_correlation_function(::QDSimUtilities.Method"TNPI", units:
         ts, corr, _ = ComplexTNPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
         ft = get(sim_node, "fourier_transform", false)
         if ft
-            ωs, spectrum = Utilities.fourier_transform(ts, corr)
+            conjugated = get(sim_node, "conjugate", false)
+            ωs, spectrum = conjugated ? Utilities.fourier_transform(ts, conj.(corr)) : Utilities.fourier_transform(ts, corr)
             Utilities.check_or_insert_value(data, "frequency", ωs ./ units.energy_unit)
             Utilities.check_or_insert_value(data, "spectrum", spectrum)
         end
@@ -141,7 +142,8 @@ function complex_time_correlation_function(::QDSimUtilities.Method"QuAPI", units
         ts, corr, _ = ComplexQuAPI.complex_correlation_function(; Hamiltonian=sys.Hamiltonian, β=bath.β, tfinal, dt=sim.dt, N=sim.nsteps, Jw=bath.Jw, svec=bath.svecs, A, B=[B], Z, verbose=true, extraargs, output=data, type_corr)
         ft = get(sim_node, "fourier_transform", false)
         if ft
-            ωs, spectrum = Utilities.fourier_transform(ts, corr)
+            conjugated = get(sim_node, "conjugate", false)
+            ωs, spectrum = conjugated ? Utilities.fourier_transform(ts, conj.(corr)) : Utilities.fourier_transform(ts, corr)
             Utilities.check_or_insert_value(data, "frequency", ωs ./units.energy_unit)
             Utilities.check_or_insert_value(data, "spectrum", spectrum)
         end

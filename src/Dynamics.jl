@@ -73,6 +73,41 @@ function dynamics(::QDSimUtilities.Method"QuAPI-TTM", units::QDSimUtilities.Unit
     data
 end
 
+function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI-TTM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
+    if !dry
+        @info "Running an adaptive kinks QuAPI calculation with TTM. Please cite:"
+        QDSimUtilities.print_citation(QuAPI.references)
+        QDSimUtilities.print_citation(TTM.references)
+    end
+    rmax = sim_node["rmax"]
+    rmax_group = Utilities.create_and_select_group(dt_group, "rmax=$(rmax)")
+    cutoff = get(sim_node, "cutoff", 1e-10)
+    cutoff_group = Utilities.create_and_select_group(rmax_group, "cutoff=$(cutoff)")
+    num_kinks = get(sim_node, "num_kinks", -1)
+    kink_group = Utilities.create_and_select_group(cutoff_group, "num_kinks=$(num_kinks)")
+    prop_cutoff = get(sim_node, "propagator_cutoff", 0.0)
+    data = Utilities.create_and_select_group(kink_group, "prop_cutoff=$(prop_cutoff)")
+    exec = get(sim_node, "exec", "ThreadedEx")
+    if exec != "SequentialEx"
+        @info "Running with $(Threads.nthreads()) threads."
+    end
+    if !dry
+        Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
+        Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
+        Utilities.check_or_insert_value(data, "time", 0:sim.dt:sim.nsteps*sim.dt |> collect)
+        flush(data)
+
+        path_integral_routine = QuAPI.build_augmented_propagator
+        extraargs = QuAPI.QuAPIArgs(; cutoff, prop_cutoff, num_kinks)
+        fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax)
+        Utilities.check_or_insert_value(data, "fbU", fbU)
+        flush(data)
+        TTM.get_propagators(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax=rmax, path_integral_routine, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec))..., data
+        @info "After this run, please run a propagate-using-tmats calculation to obtain the time evolution of a particular density matrix."
+    end
+    data
+end
+
 function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
     if !dry
         @info "Running a Blip calculation with TTM. Please cite:"
