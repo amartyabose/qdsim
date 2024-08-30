@@ -102,7 +102,7 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI-TTM", units::QDSi
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax, forward_backward=false)
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
-        TTM.get_propagators(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax=rmax, path_integral_routine, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec))..., data
+        TTM.get_propagators(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax=rmax, path_integral_routine, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec), forward_backward=false)..., data
         @info "After this run, please run a propagate-using-tmats calculation to obtain the time evolution of a particular density matrix."
     end
     data
