@@ -97,7 +97,7 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI-TTM", units::QDSi
         Utilities.check_or_insert_value(data, "time", 0:sim.dt:sim.nsteps*sim.dt |> collect)
         flush(data)
 
-        path_integral_routine = QuAPI.build_augmented_propagator
+        path_integral_routine = QuAPI.build_augmented_propagator_kink
         extraargs = QuAPI.QuAPIArgs(; cutoff, prop_cutoff, num_kinks)
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax)
         Utilities.check_or_insert_value(data, "fbU", fbU)
