@@ -85,8 +85,10 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI-TTM", units::QDSi
     cutoff_group = Utilities.create_and_select_group(rmax_group, "cutoff=$(cutoff)")
     num_kinks = get(sim_node, "num_kinks", -1)
     kink_group = Utilities.create_and_select_group(cutoff_group, "num_kinks=$(num_kinks)")
+    num_blips = get(sim_node, "num_blips", -1)
+    blip_group = Utilities.create_and_select_group(kink_group, "num_blips=$(num_blips)")
     prop_cutoff = get(sim_node, "propagator_cutoff", 0.0)
-    data = Utilities.create_and_select_group(kink_group, "prop_cutoff=$(prop_cutoff)")
+    data = Utilities.create_and_select_group(blip_group, "prop_cutoff=$(prop_cutoff)")
     exec = get(sim_node, "exec", "ThreadedEx")
     if exec != "SequentialEx"
         @info "Running with $(Threads.nthreads()) threads."
@@ -98,7 +100,7 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI-TTM", units::QDSi
         flush(data)
 
         path_integral_routine = QuAPI.build_augmented_propagator_kink
-        extraargs = QuAPI.QuAPIArgs(; cutoff, prop_cutoff, num_kinks)
+        extraargs = QuAPI.QuAPIArgs(; cutoff, prop_cutoff, num_kinks, num_blips)
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax, forward_backward=false)
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
