@@ -40,12 +40,65 @@ function parse_unit(input_dict)
 end
 
 function parse_system(sys_inp, unit)
-    H0 = read_matrix(sys_inp["Hamiltonian"], get(sys_inp, "type", "real")) * unit.energy_unit
+    Htype = get(sys_inp, "Htype", "file")
+    H0 = if Htype == "file"
+        read_matrix(sys_inp["Hamiltonian"], get(sys_inp, "type", "real")) * unit.energy_unit
+    elseif Htype == "nearest_neighbor"
+        site_energy = sys_inp["site_energy"]
+        coupling = sys_inp["coupling"]
+        num_sites = sys_inp["num_sites"]
+        Utilities.create_nn_hamiltonian(; site_energies=repeat([site_energy], num_sites), couplings=repeat([coupling], num_sites-1), periodic=false)
+    end
     ρ0 = nothing
     if haskey(sys_inp, "init_rho")
         ρ0 = read_matrix(sys_inp["init_rho"], "real")
     end
     QDSimUtilities.System(H0, ρ0)
+end
+
+function get_bath(b, unit)
+    sd_type = get(b, "type", "ohmic")
+    J = nothing
+    if sd_type == "ohmic"
+        ξ = b["xi"]
+        ωc = b["omegac"]
+        n = get(b, "n", 1.0)
+        Δs = get(b, "Ds", 2.0)
+        npoints = get(b, "npoints", 100000)
+        ωmax = get(b, "omega_max", 30.0 * ωc)
+        ωc *= unit.energy_unit
+        ωmax *= unit.energy_unit
+        classical = get(b, "classical", false)
+        J = SpectralDensities.ExponentialCutoff(; ξ, ωc, n, Δs, ωmax, npoints, classical)
+    elseif sd_type == "drude_lorentz"
+        λ = b["lambda"] * unit.energy_unit
+        γ = b["gamma"]
+        ωmax = get(b, "omega_max", 100.0 * γ)
+        γ *= unit.energy_unit
+        ωmax *= unit.energy_unit
+        npoints = get(b, "npoints", 100000)
+        Δs = get(b, "Ds", 2.0)
+        classical = get(b, "classical", false)
+        J = SpectralDensities.DrudeLorentz(; λ, γ, Δs, ωmax, npoints, classical)
+    elseif sd_type == "tabular"
+        inpfile = b["jw_file"]
+        skipstart = get(b, "skipstart", 1)
+        classical = get(b, "classical", false)
+        J = SpectralDensities.read_jw(inpfile; skipstart, classical)
+    elseif sd_type == "tabular_jw_over_w"
+        inpfile = b["jw_over_w_file"]
+        skipstart = get(b, "skipstart", 1)
+        classical = get(b, "classical", false)
+        J = SpectralDensities.read_jw(inpfile; skipstart, classical)
+    elseif sd_type == "huang_rhys"
+        inpfile = b["huang_rhys_file"]
+        skipstart = get(b, "skipstart", 1)
+        classical = get(b, "classical", false)
+        J = SpectralDensities.read_huang_rhys(inpfile; skipstart, classical)
+    else
+        throw(ArgumentError("Spectral density of type $(sd_type) not supported."))
+    end
+    J
 end
 
 function parse_bath(baths, H0, unit)
@@ -56,49 +109,21 @@ function parse_bath(baths, H0, unit)
         β = 1.0 / austrip(baths["temperature"] * uparse("K") * Unitful.k)
     end
     Jw = Vector{SpectralDensities.SpectralDensity}()
-    svecs = zeros(length(baths["bath"]), size(H0, 1))
-    for (nb, b) in enumerate(baths["bath"])
-        sd_type = get(b, "type", "ohmic")
-        if sd_type == "ohmic"
-            ξ = b["xi"]
-            ωc = b["omegac"]
-            n = get(b, "n", 1.0)
-            Δs = get(b, "Ds", 2.0)
-            npoints = get(b, "npoints", 100000)
-            ωmax = get(b, "omega_max", 30.0 * ωc)
-            ωc *= unit.energy_unit
-            ωmax *= unit.energy_unit
-            classical = get(b, "classical", false)
-            push!(Jw, SpectralDensities.ExponentialCutoff(; ξ, ωc, n, Δs, ωmax, npoints, classical))
-        elseif sd_type == "drude_lorentz"
-            λ = b["lambda"] * unit.energy_unit
-            γ = b["gamma"]
-            ωmax = get(b, "omega_max", 100.0 * γ)
-            γ *= unit.energy_unit
-            ωmax *= unit.energy_unit
-            npoints = get(b, "npoints", 100000)
-            Δs = get(b, "Ds", 2.0)
-            classical = get(b, "classical", false)
-            push!(Jw, SpectralDensities.DrudeLorentz(; λ, γ, Δs, ωmax, npoints, classical))
-        elseif sd_type == "tabular"
-            inpfile = b["jw_file"]
-            skipstart = get(b, "skipstart", 1)
-            classical = get(b, "classical", false)
-            push!(Jw, SpectralDensities.read_jw(inpfile; skipstart, classical))
-        elseif sd_type == "tabular_jw_over_w"
-            inpfile = b["jw_over_w_file"]
-            skipstart = get(b, "skipstart", 1)
-            classical = get(b, "classical", false)
-            push!(Jw, SpectralDensities.read_jw(inpfile; skipstart, classical))
-        elseif sd_type == "huang_rhys"
-            inpfile = b["huang_rhys_file"]
-            skipstart = get(b, "skipstart", 1)
-            classical = get(b, "classical", false)
-            push!(Jw, SpectralDensities.read_huang_rhys(inpfile; skipstart, classical))
-        else
-            throw(ArgumentError("Spectral density of type $(sd_type) not supported."))
+    svecs = zeros(size(H0, 1), size(H0, 1))
+    btype = get(baths, "baths_type", "list")
+    if btype == "list"
+        svecs = zeros(length(baths["bath"]), size(H0, 1))
+        for (nb, b) in enumerate(baths["bath"])
+            push!(Jw, get_bath(b, unit))
+            svecs[nb, :] .= b["svec"]
         end
-        svecs[nb, :] .= b["svec"]
+    elseif btype == "site_based"
+        bath = get_bath(baths["bath"][1], unit)
+        nsites = size(H0, 1)
+        for nb = 1:nsites
+            push!(Jw, bath)
+            svecs[nb, nb] = 1.0
+        end
     end
     QDSimUtilities.Bath(β, Jw, svecs)
 end
