@@ -44,8 +44,8 @@ function parse_system(sys_inp, unit)
     H0 = if Htype == "file"
         read_matrix(sys_inp["Hamiltonian"], get(sys_inp, "type", "real")) * unit.energy_unit
     elseif Htype == "nearest_neighbor"
-        site_energy = sys_inp["site_energy"]
-        coupling = sys_inp["coupling"]
+        site_energy = sys_inp["site_energy"] * unit.energy_unit
+        coupling = sys_inp["coupling"] * unit.energy_unit
         num_sites = sys_inp["num_sites"]
         Utilities.create_nn_hamiltonian(; site_energies=repeat([site_energy], num_sites), couplings=repeat([coupling], num_sites-1), periodic=false)
     end
