@@ -41,7 +41,7 @@ end
         out = h5open(sim.output, "r+")
         method_group = out["$(sim.name)/$(sim.calculation)/$(sim.method)"]
         data_node = calc(QDSimUtilities.Calculation(sim.calculation)(), sys, bath, sim, units, sim_node, method_group; dry=true)
-        Ts = read_dataset(data_node, "Tmat")
+        Ts = read_dataset(data_node, "T0e")
         U0es = TTM.get_propagators_from_Ts(Ts, sim.nsteps)
 
         ρ0s = sim_node["rho0"]
