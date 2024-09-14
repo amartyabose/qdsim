@@ -186,9 +186,8 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI", units::QDSimUti
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax, forward_backward=false)
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
-        ρ0 = ParseInput.parse_operator(sim_node["rho0"], sim.Hamiltonian)
+        ρ0 = ParseInput.parse_operator(sim_node["rho0"], sys.Hamiltonian)
         QuAPI.propagate_kink(; fbU, Jw=bath.Jw, β=bath.β, ρ0, dt=sim.dt, ntimes=rmax, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec))
-        @info "After this run, please run a propagate-using-tmats calculation to obtain the time evolution of a particular density matrix."
     end
     data
 end
