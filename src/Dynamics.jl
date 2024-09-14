@@ -154,6 +154,45 @@ function dynamics(::QDSimUtilities.Method"Blip-TTM", units::QDSimUtilities.Units
     data
 end
 
+function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
+    if !dry
+        @info "Running an adaptive kinks QuAPI calculation with TTM. Please cite:"
+        QDSimUtilities.print_citation(QuAPI.references)
+        QDSimUtilities.print_citation(TTM.references)
+    end
+    rmax = sim_node["rmax"]
+    rmax_group = Utilities.create_and_select_group(dt_group, "rmax=$(rmax)")
+    cutoff = get(sim_node, "cutoff", 1e-10)
+    cutoff_group = Utilities.create_and_select_group(rmax_group, "cutoff=$(cutoff)")
+    num_kinks = get(sim_node, "num_kinks", -1)
+    kink_group = Utilities.create_and_select_group(cutoff_group, "num_kinks=$(num_kinks)")
+    num_blips = get(sim_node, "num_blips", -1)
+    blip_group = Utilities.create_and_select_group(kink_group, "num_blips=$(num_blips)")
+    prop_cutoff = get(sim_node, "propagator_cutoff", 0.0)
+    prop_cutoff_group = Utilities.create_and_select_group(blip_group, "prop_cutoff=$(prop_cutoff)")
+    exec = get(sim_node, "exec", "ThreadedEx")
+    if exec != "SequentialEx"
+        @info "Running with $(Threads.nthreads()) threads."
+    end
+    outgroup = sim_node["outgroup"]
+    data = Utilities.create_and_select_group(prop_cutoff_group, outgroup)
+    if !dry
+        Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
+        Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
+        Utilities.check_or_insert_value(data, "time", 0:sim.dt:rmax*sim.dt |> collect)
+        flush(data)
+
+        extraargs = QuAPI.QuAPIArgs(; cutoff, prop_cutoff, num_kinks, num_blips)
+        fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax, forward_backward=false)
+        Utilities.check_or_insert_value(data, "fbU", fbU)
+        flush(data)
+        ρ0 = ParseInput.parse_operator(sim_node["rho0"], sim.Hamiltonian)
+        QuAPI.propagate_kink(; fbU, Jw=bath.Jw, β=bath.β, ρ0, dt=sim.dt, ntimes=rmax, extraargs, svec=bath.svecs, verbose=true, output=data, exec=QDSimUtilities.parse_exec(exec))
+        @info "After this run, please run a propagate-using-tmats calculation to obtain the time evolution of a particular density matrix."
+    end
+    data
+end
+
 function dynamics(::QDSimUtilities.Method"HEOM", units::QDSimUtilities.Units, sys::QDSimUtilities.System, bath::QDSimUtilities.Bath, sim::QDSimUtilities.Simulation, dt_group::Union{Nothing,HDF5.Group}, sim_node; dry=false)
     if !dry
         @info "Running a HEOM calculation."
@@ -177,7 +216,7 @@ function dynamics(::QDSimUtilities.Method"HEOM", units::QDSimUtilities.Units, sy
 
         Hamiltonian = sys.Hamiltonian .+ diagm(sum([SpectralDensities.reorganization_energy(j) * bath.svecs[nb, :] .^ 2 for (nb, j) in enumerate(bath.Jw)])) 
         sys_ops = [diagm(complex(bath.svecs[nb, :])) for nb = 1:size(bath.svecs, 1)]
-        ρ0 = ParseInput.read_matrix(sim_node["rho0"])
+        ρ0 = ParseInput.parse_operator(sim_node["rho0"], sim.Hamiltonian)
         @time _, ρs = HEOM.propagate(; Hamiltonian, ρ0, sys_ops, Jw=bath.Jw, β=bath.β, num_modes, Lmax, dt=sim.dt, ntimes=sim.nsteps, threshold, extraargs=Utilities.DiffEqArgs(; reltol, abstol))
         Utilities.check_or_insert_value(data, "rhos", ρs)
         flush(data)
