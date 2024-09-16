@@ -34,12 +34,12 @@ end
         outputdir = sim_node["outgroup"]
         method_group = out["$(sim.name)/$(sim.calculation)/$(sim.method)"]
         data_node = Simulate.calc(QDSimUtilities.Calculation(sim.calculation)(), sys, bath, sim, units, sim_node, method_group; dry=true)[outputdir]
-        ts = read_dataset(data_node, "ts")
+        ts = read_dataset(data_node, "time")
         dt = ts[2] - ts[1]
         ωlim = π/dt
         dω = π/ts[end]
         ω = -ωlim:dω:ωlim
-        ρs = read_dataset(data_node, "rhos")
+        ρs = read_dataset(data_node, "rho")
         num_obs = length(sim_node["observable"])
         names = String[]
         ft = get(sim_node, "fourier_transform", false)
@@ -72,9 +72,9 @@ end
             end
             write(io, "\n")
             if ft
-                writedlm(io, [round.(ω; sigdigits=10) round.(real.(vals); sigdigits=10)])
+                writedlm(io, [round.(ω ./ units.energy_unit; sigdigits=10) round.(real.(vals); sigdigits=10)])
             else
-                writedlm(io, [round.(ts; sigdigits=10) round.(real.(vals); sigdigits=10)])
+                writedlm(io, [round.(ts ./ units.time_unit; sigdigits=10) round.(real.(vals); sigdigits=10)])
             end
         end
 
@@ -89,9 +89,9 @@ end
             end
             write(io, "\n")
             if ft
-                writedlm(io, [round.(ω; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+                writedlm(io, [round.(ω ./ units.energy_unit; sigdigits=10) round.(imag.(vals); sigdigits=10)])
             else
-                writedlm(io, [round.(ts; sigdigits=10) round.(imag.(vals); sigdigits=10)])
+                writedlm(io, [round.(ts ./ units.time_unit; sigdigits=10) round.(imag.(vals); sigdigits=10)])
             end
         end
     end

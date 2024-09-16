@@ -169,14 +169,14 @@ function dynamics(::QDSimUtilities.Method"adaptive-kinks-QuAPI", units::QDSimUti
     num_blips = get(sim_node, "num_blips", -1)
     blip_group = Utilities.create_and_select_group(kink_group, "num_blips=$(num_blips)")
     prop_cutoff = get(sim_node, "propagator_cutoff", 0.0)
-    prop_cutoff_group = Utilities.create_and_select_group(blip_group, "prop_cutoff=$(prop_cutoff)")
+    data = Utilities.create_and_select_group(blip_group, "prop_cutoff=$(prop_cutoff)")
     exec = get(sim_node, "exec", "ThreadedEx")
     if exec != "SequentialEx"
         @info "Running with $(Threads.nthreads()) threads."
     end
     outgroup = sim_node["outgroup"]
-    data = Utilities.create_and_select_group(prop_cutoff_group, outgroup)
     if !dry
+        data = Utilities.create_and_select_group(data, outgroup)
         Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
         Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
         Utilities.check_or_insert_value(data, "time", 0:sim.dt:rmax*sim.dt |> collect)
@@ -204,10 +204,10 @@ function dynamics(::QDSimUtilities.Method"HEOM", units::QDSimUtilities.Units, sy
     threshold_group = Utilities.create_and_select_group(Lmax_group, "threshold=$(threshold)")
     reltol = get(sim_node, "reltol", 1e-6)
     abstol = get(sim_node, "abstol", 1e-6)
-    diffgroup = Utilities.create_and_select_group(threshold_group, "reltol=$(reltol); abstol=$(abstol)")
+    data = Utilities.create_and_select_group(threshold_group, "reltol=$(reltol); abstol=$(abstol)")
     outgroup = sim_node["outgroup"]
-    data = Utilities.create_and_select_group(diffgroup, outgroup)
     if !dry
+        data = Utilities.create_and_select_group(data, outgroup)
         Utilities.check_or_insert_value(data, "dt", sim.dt / units.time_unit)
         Utilities.check_or_insert_value(data, "time_unit", units.time_unit)
         Utilities.check_or_insert_value(data, "time", 0:sim.dt:sim.nsteps*sim.dt |> collect)
@@ -217,7 +217,7 @@ function dynamics(::QDSimUtilities.Method"HEOM", units::QDSimUtilities.Units, sy
         sys_ops = [diagm(complex(bath.svecs[nb, :])) for nb = 1:size(bath.svecs, 1)]
         ρ0 = ParseInput.parse_operator(sim_node["rho0"], sim.Hamiltonian)
         @time _, ρs = HEOM.propagate(; Hamiltonian, ρ0, sys_ops, Jw=bath.Jw, β=bath.β, num_modes, Lmax, dt=sim.dt, ntimes=sim.nsteps, threshold, extraargs=Utilities.DiffEqArgs(; reltol, abstol))
-        Utilities.check_or_insert_value(data, "rhos", ρs)
+        Utilities.check_or_insert_value(data, "rho", ρs)
         flush(data)
     end
     data

@@ -52,8 +52,9 @@ end
             ts, ρs = Utilities.apply_propagator(; propagators=U0es, ρ0, ntimes=sim.nsteps, sim.dt)
             @info "Saving the data in $(outputdir)."
             out = Utilities.create_and_select_group(data_node, outputdir)
-            Utilities.check_or_insert_value(out, "ts", collect(ts) / units.time_unit)
-            Utilities.check_or_insert_value(out, "rhos", ρs)
+            Utilities.check_or_insert_value(out, "time", collect(ts))
+            Utilities.check_or_insert_value(out, "time_unit" , units.time_unit)
+            Utilities.check_or_insert_value(out, "rho", ρs)
         end
         close(out)
     end
