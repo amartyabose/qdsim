@@ -23,6 +23,7 @@ struct Units
 end
 
 struct System
+    Htype::String
     Hamiltonian::Matrix{ComplexF64}
     ρ0::Union{Nothing,Matrix{ComplexF64}}
 end

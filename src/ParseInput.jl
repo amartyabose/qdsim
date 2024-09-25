@@ -48,12 +48,24 @@ function parse_system(sys_inp, unit)
         coupling = sys_inp["coupling"] * unit.energy_unit
         num_sites = sys_inp["num_sites"]
         Utilities.create_nn_hamiltonian(; site_energies=repeat([site_energy], num_sites), couplings=repeat([coupling], num_sites-1), periodic=false)
+    elseif Htype == "nearest_neighbor_cavity"
+        site_energy = sys_inp["site_energy"] * unit.energy_unit
+        coupling = sys_inp["coupling"] * unit.energy_unit
+        num_sites = sys_inp["num_sites"]
+        cavity_energy = sys_inp["cavity_energy"] * unit.energy_unit
+        cavity_coupling = sys_inp["cavity_coupling"] * unit.energy_unit
+        H = Matrix{ComplexF64}(undef, num_sites+1, num_sites+1)
+        H[1:num_sites, 1:num_sites] .= Utilities.create_nn_hamiltonian(; site_energies=repeat([site_energy], num_sites), couplings=repeat([coupling], num_sites-1), periodic=false)
+        H[end, :] .= cavity_coupling / sqrt(num_sites)
+        H[:, end] .= cavity_coupling / sqrt(num_sites)
+        H[end, end] = cavity_energy
+        H
     end
     ρ0 = nothing
     if haskey(sys_inp, "init_rho")
         ρ0 = read_matrix(sys_inp["init_rho"], "real")
     end
-    QDSimUtilities.System(H0, ρ0)
+    QDSimUtilities.System(Htype, H0, ρ0)
 end
 
 function get_bath(b, unit)
@@ -101,7 +113,7 @@ function get_bath(b, unit)
     J
 end
 
-function parse_bath(baths, H0, unit)
+function parse_bath(baths, sys, unit)
     β = 0.0
     if haskey(baths, "beta")
         β = baths["beta"]
@@ -109,30 +121,31 @@ function parse_bath(baths, H0, unit)
         β = 1.0 / austrip(baths["temperature"] * uparse("K") * Unitful.k)
     end
     Jw = Vector{SpectralDensities.SpectralDensity}()
-    svecs = zeros(size(H0, 1), size(H0, 1))
+    svecs = zeros(size(sys.Hamiltonian, 1), size(sys.Hamiltonian, 1))
     btype = get(baths, "baths_type", "list")
     if btype == "list"
-        svecs = zeros(length(baths["bath"]), size(H0, 1))
+        svecs = zeros(length(baths["bath"]), size(sys.Hamiltonian, 1))
         for (nb, b) in enumerate(baths["bath"])
             push!(Jw, get_bath(b, unit))
             svecs[nb, :] .= b["svec"]
         end
     elseif btype == "site_based"
         bath = get_bath(baths["bath"][1], unit)
-        nsites = size(H0, 1)
+        nsites = sys.Htype == "nearest_neighbor_cavity" ? size(sys.Hamiltonian, 1) - 1 : size(sys.Hamiltonian, 1)
+        svecs = zeros(nsites, size(sys.Hamiltonian, 1))
         for nb = 1:nsites
             push!(Jw, bath)
             svecs[nb, nb] = 1.0
         end
     end
-    QDSimUtilities.Bath(β, Jw, svecs)
+    QDSimUtilities.Bath(β, Jw,svecs)
 end
 
 function parse_system_bath(input_file)
     input_dict = TOML.parsefile(input_file)
     unit = parse_unit(input_dict)
     sys = parse_system(input_dict["system"], unit)
-    bath = parse_bath(input_dict["baths"], sys.Hamiltonian, unit)
+    bath = parse_bath(input_dict["baths"], sys, unit)
     is_QuAPI = get(input_dict["system"], "is_QuAPI", true)
     if !is_QuAPI
         sys.Hamiltonian .-= diagm(sum([SpectralDensities.reorganization_energy(j) * bath.svecs[nb, :] .^ 2 for (nb, j) in enumerate(bath.Jw)]))
