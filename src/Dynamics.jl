@@ -36,7 +36,7 @@ function dynamics(::QDSimUtilities.Method"TNPI-TTM", units::QDSimUtilities.Units
         fbU = Propagators.calculate_bare_propagators(; Hamiltonian=sys.Hamiltonian, dt=sim.dt, ntimes=rmax)
         Utilities.check_or_insert_value(data, "fbU", fbU)
         flush(data)
-        TEMPO.build_augmented_propagator(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax, kmax, extraargs, svec=bath.svecs, verbose=true, output=data)
+        TEMPO.build_augmented_propagator(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=rmax, kmax, extraargs, svec=bath.svecs, verbose=true, output=data)
         # TTM.get_propagators(; fbU, Jw=bath.Jw, β=bath.β, dt=sim.dt, ntimes=sim.nsteps, rmax, kmax, path_integral_routine, extraargs, svec=bath.svecs, verbose=true, output=data)
         @info "After this run, please run a propagate-using-tmats calculation to obtain the time evolution of a particular density matrix."
     end
