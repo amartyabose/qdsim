@@ -12,7 +12,7 @@ function read_matrix(fname::String, mat_type::String="real")
     if mat_type == "real"
         Matrix{ComplexF64}(readdlm(fname))
     elseif mat_type == "complex"
-        readdlm(fname, ' ', ComplexF64)
+        readdlm(fname, ComplexF64)
     end
 end
 

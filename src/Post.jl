@@ -43,6 +43,10 @@ end
         num_obs = length(sim_node["observable"])
         names = String[]
         ft = get(sim_node, "fourier_transform", false)
+        full = true
+        if ft
+            full = get(sim_node, "full_transform", true)
+        end
         vals = ft ? zeros(ComplexF64, length(ω), num_obs) : zeros(ComplexF64, length(ts), num_obs)
         values = ft ? zeros(ComplexF64, length(ω)) : zeros(ComplexF64, length(ts))
         for (os, obs) in enumerate(sim_node["observable"])
@@ -57,7 +61,7 @@ end
                 obs = ParseInput.parse_operator(obs["observable"], sys.Hamiltonian)
                 values = Utilities.expect(ρs, obs)
             end
-            _, valft = ft ? Utilities.fourier_transform(ts, values) : (ts, values)
+            _, valft = ft ? Utilities.fourier_transform(ts, values; full=full) : (ts, values)
             vals[:, os] .= ft ? valft : valft
         end
 
