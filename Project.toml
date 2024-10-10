@@ -1,7 +1,7 @@
 name = "qdsim"
 uuid = "43a713fa-37b5-4549-b4ce-e0a6dbbb91c9"
 authors = ["Amartya Bose <amartya.bose@gmail.com> and contributors"]
-version = "1.0.0-DEV"
+version = "0.5"
 
 [deps]
 Comonicon = "863f3e99-da2a-4334-8734-de3dacbe5542"
